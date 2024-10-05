@@ -26,14 +26,20 @@ var add_village = async (req, res, next, transaction) => {
 };
 
 var get_villages = async(req,res,next,transaction)=>{
-  const villages = await transaction("villages").select("id", "villageName")
+  const {block_id} = req.query
+  const villages = await transaction("villages").where({block_id}).select("id", "villageName")
   res.send({ status: "001", villages});
 }
 
+var show_all_villages = async(req,res,next,transaction)=>{
+  const {block_id} = req.query
+  const villages = await transaction("villages").where({block_id}).select("id", "villageName")
+  res.send({ status: "001", villages});
+}
 
 add_village = trycatch(add_village)
 get_villages = trycatch(get_villages)
-
-module.exports = {add_village, get_villages}
+show_all_villages=trycatch(show_all_villages)
+module.exports = {add_village, get_villages,show_all_villages}
 
 

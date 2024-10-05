@@ -28,10 +28,13 @@ var get_block = async (req, res, next, transaction) => {
   const Block = await transaction("blocks").select("id","blockName");
   res.send({ status: "001", Block });
 };
-
+var show_block = async (req, res, next, transaction) => {
+  const Block = await transaction("blocks").select("id","blockName");
+  res.send({ status: "001", Block });
+};
 add_block = trycatch(add_block)
 get_block = trycatch(get_block)
-
-module.exports = {add_block,get_block}
+show_block= trycatch(show_block);
+module.exports = {add_block,get_block,show_block}
 
 

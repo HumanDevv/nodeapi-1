@@ -100,6 +100,8 @@ var userLogin = async (req, res, next, transaction) => {
     .where("mobile", mobile)
     .first();
 
+    
+
   if (!user) {
     // return res.send({ status: "002", message: "Mobile is not Registered" });
     throw new CreateError("002", "Mobile is not Registered");
@@ -110,7 +112,14 @@ var userLogin = async (req, res, next, transaction) => {
     //return res.status(400).json({ status: "002", message: "Incorrect password" });
     throw new CreateError("002", "Incorrect password");
   }
-
+  const blockName = await transaction("blocks")
+  .select("id","blockName")
+  .where("id", user?.block_id)
+  .first();
+  const villageName = await transaction("villages")
+  .select("id","villageName")
+  .where("id", user?.village_id)
+  .first();
   // Prepare payload for JWT
   const payload = {
     id: user.id,
@@ -132,6 +141,8 @@ var userLogin = async (req, res, next, transaction) => {
     token,
     username: user.firstName,
     isOfficial: user.status,
+    villageName:villageName,
+    blockName:blockName
   });
 };
 

@@ -17,17 +17,14 @@ var add_official = async (req, res, next, transaction) => {
     password: Joi.string().max(50).required(),
     district_id: Joi.number()
     .integer()
-    .max(11)
     .positive()
     .required(),
     block_id: Joi.number()
     .integer()
-    .max(11)
     .positive()
     .required(),
     village_id: Joi.number()
     .integer()
-    .max(11)
     .positive()
     .required(),
 
@@ -106,11 +103,10 @@ var delete_official = async (req, res, next, transaction) => {
     throw new CreateError("002", "Official do not exist");
   }
 
-  await transaction("users").delete().where("id", user_id);
+  await transaction("users").update('is_suspended',1).where("id", user_id);
 
   res.send({ status: "001", message: "Official deleted successfully" });
 };
-
 var delete_citizen = async (req, res, next, transaction) => {
   const user_id = req.params.user_id;
 
@@ -154,7 +150,7 @@ var no_all_users = async (req, res, next, transaction) => {
 };
 
 var show_all_officials = async (req, res, next, transaction) => {
-  const officials = await transaction("users").select("*").where("status", 1);
+  const officials = await transaction("users").select("*").where("status", 1).where('is_suspended',0);
   res.send({ status: "001", officials });
 };
 
@@ -208,7 +204,7 @@ var officialFilter = async (req, res, next, transaction) => {
   // if (error) {
   //   throw new CreateError("ValidationError", error.details[0].message);
   // }
-  let query = transaction("users").select("*").where("status", 1);
+  let query = transaction("users").select("*").where("status", 1).where('is_suspended',0);
   if (block_id) {
     query = query.andWhere("block_id", block_id);
   }
@@ -226,7 +222,35 @@ var officialFilter = async (req, res, next, transaction) => {
     next(error); 
   }
 };
+var projectFilter = async (req, res, next, transaction) => {
+  const { block_id, village_id,official_id} = req.body;
+  let query = transaction("projects").select("*");
+  if (block_id) {
+    query = query.andWhere("block_id", block_id);
+  }
 
+  if (village_id) {
+    query = query.andWhere("village_id", village_id);
+  }
+  if (official_id) {
+    query = query.andWhere("user_id", official_id);
+  }
+  if(block_id && village_id && official_id){
+    query = query.andWhere("village_id", village_id).andWhere("block_id",block_id).andWhere("user_id", official_id);
+  }
+  try {
+    const projects = await query;
+    res.send({ status: "001", projects });
+  } catch (error) {
+    next(error); 
+  }
+};
+
+var get__officials_by_village = async (req, res, next, transaction) => {
+  const {village_id} = req.query
+  const officials = await transaction("users").where({village_id}).select("id","firstName","lastName");
+  res.send({ status: "001", officials });
+};
 
 add_official = trycatch(add_official);
 delete_citizen = trycatch(delete_citizen);
@@ -238,6 +262,8 @@ get_admin2 = trycatch(get_admin2);
 update_pass_official = trycatch(update_pass_official);
 delete_admin = trycatch(delete_admin);
 officialFilter = trycatch(officialFilter);
+projectFilter = trycatch(projectFilter);
+get__officials_by_village= trycatch(get__officials_by_village)
 module.exports = {
   delete_admin,
   add_official,
@@ -248,5 +274,7 @@ module.exports = {
   show_all_citizens,
   get_admin2,
   update_pass_official,
-  officialFilter
+  officialFilter,
+  projectFilter,
+  get__officials_by_village
 };

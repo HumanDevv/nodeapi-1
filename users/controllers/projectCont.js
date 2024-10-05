@@ -1,6 +1,7 @@
 const Joi = require("joi");
 const { trycatch } = require("../../utils/try_catch");
 const { CreateError } = require("../../utils/create_err");
+const moment = require('moment');
 
 var addProject = async (req, res, next, transaction) => {
   var data = req.body;
@@ -9,35 +10,27 @@ var addProject = async (req, res, next, transaction) => {
     work_title: Joi.string().max(50).required(),
     category_id: Joi.number()
       .integer()
-      .max(9007199254740991)
-      .positive()
+      
       .required(),
-      // sub_cat_id: Joi.number()
-      // .integer()
-      // .max(9007199254740991)
-      // .positive()
-      // .required(),
+      
     district_id: Joi.number()
       .integer()
-      .max(9007199254740991)
-      .positive()
+     
       .required(),
     block_id: Joi.number()
       .integer()
-      .max(9007199254740991)
-      .positive()
+      
       .required(),
     village_id: Joi.number()
       .integer()
-      .max(9007199254740991)
-      .positive()
+     
       .required(),
-    start_date: Joi.date().required().allow("").allow(null),
-    completion_date: Joi.date().required().allow("").allow(null),
+      start_date: Joi.date().required(),
+      completion_date: Joi.date().required(),
     allotted_cost: Joi.number().min(1).required(),
     estimated_cost: Joi.number().min(1).required(),
-    images: Joi.string().max(250).allow(""),
-    lat: Joi.number().min(-90).max(90).required(),
+    images: Joi.string().max(250).allow(''),
+    lat: Joi.number().min(-90).max(90).allow(''),
     long: Joi.number().min(-180).max(180).required(),
     projectDetails: Joi.string().max(250).required(),
   });
@@ -46,9 +39,8 @@ var addProject = async (req, res, next, transaction) => {
   if (error) {
     throw new CreateError("ValidationError", error.details[0].message);
   }
-
+  
   var {
-    sub_cat_id,
     work_title,
     category_id,
     district_id,
@@ -67,7 +59,6 @@ var addProject = async (req, res, next, transaction) => {
     user_id: req.official_id,
     remarks: projectDetails,
     category_id,
-    sub_cat_id,
     district_id,
     block_id,
     village_id,
@@ -105,35 +96,28 @@ var editProject = async (req, res, next, transaction) => {
   const schema = Joi.object({
     project_id: Joi.number()
       .integer()
-      .max(9007199254740991)
-      .positive()
+      
       .required(),
     work_title: Joi.string().max(50).required(),
     category_id: Joi.number()
       .integer()
-      .max(9007199254740991)
-      .positive()
       .required(),
     district_id: Joi.number()
       .integer()
-      .max(9007199254740991)
-      .positive()
       .required(),
     block_id: Joi.number()
       .integer()
-      .max(9007199254740991)
-      .positive()
+     
       .required(),
     village_id: Joi.number()
       .integer()
-      .max(9007199254740991)
-      .positive()
+      
       .required(),
     start_date: Joi.date().required().allow("").allow(null),
     completion_date: Joi.date().required().allow("").allow(null),
     allotted_cost: Joi.number().min(1).required(),
     estimated_cost: Joi.number().min(1).required(),
-    images: Joi.string().max(250).allow(""),
+    images: Joi.string().max(250),
     lat: Joi.number().min(-90).max(90).required(),
     long: Joi.number().min(-180).max(180).required(),
     projectDetails: Joi.string().max(250).required(),
@@ -249,6 +233,27 @@ var show_all_projects = async (req, res, next, transaction) => {
   res.status(200).json({ status: "001", projects });
 };
 
+var get_all_projects = async (req, res, next, transaction) => {
+  const { village_id,block_id} = req.query;
+  let query = transaction("projects")
+    .select("projects.*", "users.firstName", "users.lastName","categories.category")
+    .leftJoin("users", "projects.user_id", "users.id").leftJoin("categories","projects.category_id","categories.id");
+
+  if (village_id && block_id) {
+    query = query.where("projects.village_id", village_id).where("projects.block_id", block_id);
+  }
+
+  var projects = await query;
+  projects = projects.map((project) => {
+    // Extract date part before 'T'
+    var dateOnly = new Date(project.created_at);
+    dateOnly = dateOnly.toISOString().split("T")[0];
+    return { ...project, created_at: dateOnly };
+  });
+  res.status(200).json({ status: "001", projects });
+};
+
+
 var projects_by_type = async (req, res, next, transaction) => {
   const { project_status } = req.body;
   const schema = Joi.object({
@@ -334,13 +339,11 @@ var view_projects_by_id = async (req, res, next, transaction) => {
       "blocks.blockName",
       "villages.villageName",
       "categories.category",
-      "sub_categories.sub_category"
     )
     .leftJoin("districts", "projects.district_id", "districts.id")
     .leftJoin("villages", "projects.village_id", "villages.id")
     .leftJoin("blocks", "projects.block_id", "blocks.id")
     .leftJoin("categories", "projects.category_id", "categories.id")
-    .leftJoin("sub_categories", "projects.sub_cat_id", "sub_categories.id")
     .where("projects.id", project_id);
   if (!projects) {
     // return res.send({status:'002',msg:"No record found"})
@@ -365,8 +368,7 @@ var update_project = async (req, res, next, transaction) => {
   const schema = Joi.object({
     project_id: Joi.number()
       .integer()
-      .max(9007199254740991)
-      .positive()
+      
       .required(),
     lat: Joi.number().min(-90).max(90).required(),
     long: Joi.number().min(-180).max(180).required(),
@@ -406,7 +408,7 @@ projects_by_type = trycatch(projects_by_type);
 view_projects_by_id = trycatch(view_projects_by_id);
 editProject = trycatch(editProject);
 update_project = trycatch(update_project);
-
+get_all_projects= trycatch(get_all_projects);
 module.exports = {
   addProject,
   show_no_of_project,
@@ -415,4 +417,5 @@ module.exports = {
   view_projects_by_id,
   update_project,
   editProject,
+  get_all_projects,
 };
